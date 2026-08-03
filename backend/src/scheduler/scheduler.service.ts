@@ -78,10 +78,10 @@ export class SchedulerService {
         continue;
       }
 
-      await this.prisma.searching.update({
-        where: { id: searching.id },
-        data: { status: SearchingStatus.FOUND },
-      });
+      // await this.prisma.searching.update({
+      //   where: { id: searching.id },
+      //   data: { status: SearchingStatus.FOUND },
+      // });
       this.logger.log(
         `Searching ${searching.id} (${searching.type} ${dateIso}) -> FOUND`,
       );
