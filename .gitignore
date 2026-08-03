@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Env
+.env
+!.env.example
+
+# Build output
+dist/
+build/
+coverage/
+
+# Prisma
+backend/prisma/generated/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Vite
+admin/dist/

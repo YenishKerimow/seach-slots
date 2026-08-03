@@ -1,0 +1,25 @@
+{
+  "name": "search-slots",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Turk ashgabat search-slots monorepo (NestJS + GraphQL + Prisma + React admin)",
+  "workspaces": [
+    "backend",
+    "admin"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/ensure-native-bindings.mjs",
+    "dev:backend": "npm run start:dev --workspace backend",
+    "dev:admin": "npm run dev --workspace admin",
+    "build": "npm run build --workspace backend && npm run build --workspace admin",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "prisma:migrate": "npm run prisma:migrate --workspace backend",
+    "docker:up": "docker compose up -d --build --force-recreate --remove-orphans",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "dependencies": {
+    "@as-integrations/express5": "^1.1.2"
+  }
+}

@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: search-slots-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+      POSTGRES_DB: ${POSTGRES_DB:-search_slots}
+    ports:
+      - "${POSTGRES_PORT:-5440}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-root} -d ${POSTGRES_DB:-search_slots}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: search-slots-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Inject all params from the repo-root .env into the container (BOT_TOKEN,
+    # TELEGRAM_CHAT_ID, etc.). Values in `environment:` below override any of the
+    # same keys from the file.
+    env_file:
+      - .env
+    environment:
+      # Container-to-container: reach Postgres on its internal port 5432.
+      # Overrides the host-oriented DATABASE_URL from .env (localhost:5440).
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-root}@postgres:5432/${POSTGRES_DB:-search_slots}?schema=public"
+      PORT: 3000
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+
+  admin:
+    build:
+      context: ./admin
+      args:
+        # Baked into the bundle at build time; the browser calls the backend
+        # on the host, so this points at the host-exposed backend port.
+        VITE_GRAPHQL_URL: "http://localhost:${BACKEND_PORT:-3000}/graphql"
+    container_name: search-slots-admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${ADMIN_PORT:-8080}:80"
+
+volumes:
+  postgres_data:

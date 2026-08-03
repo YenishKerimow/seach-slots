@@ -1,0 +1,51 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreateSearchingInput {
+  dates: DateRangeInput!
+  type: SearchingType! = USUAL
+}
+
+input DateRangeInput {
+  from: DateTime!
+  to: DateTime!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Mutation {
+  createSearchings(input: CreateSearchingInput!): [Searching!]!
+  removeSearching(id: ID!): Searching!
+  removeSearchings(ids: [ID!]!): Int!
+  updateSearchingStatus(id: ID!, status: SearchingStatus!): Searching!
+}
+
+type Query {
+  searching(id: ID!): Searching!
+  searchings: [Searching!]!
+}
+
+type Searching {
+  createdAt: DateTime!
+  date: DateTime!
+  id: ID!
+  status: SearchingStatus!
+  type: SearchingType!
+  updatedAt: DateTime!
+}
+
+enum SearchingStatus {
+  CANCELED
+  FOUND
+  INPROGRESS
+}
+
+enum SearchingType {
+  STUDENT
+  USUAL
+  VIP
+}
