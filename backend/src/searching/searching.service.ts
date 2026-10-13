@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSearchingInput } from './dto/create-searching.input';
 import { SearchingStatus, SearchingType } from './searching.model';
+import { eachDay } from '../common/dates';
 
 @Injectable()
 export class SearchingService {
@@ -26,7 +27,7 @@ export class SearchingService {
    * them all in a single transaction.
    */
   async create(input: CreateSearchingInput) {
-    const days = this.eachDay(input.dates.from, input.dates.to);
+    const days = eachDay(input.dates.from, input.dates.to);
     const type = input.type ?? SearchingType.USUAL;
 
     const created = await this.prisma.$transaction(
@@ -62,30 +63,5 @@ export class SearchingService {
     });
     this.logger.log(`Removed ${count} searching(s)`);
     return count;
-  }
-
-  /** Returns each UTC calendar day between `from` and `to`, inclusive. */
-  private eachDay(from: Date, to: Date): Date[] {
-    const start = this.toUtcMidnight(from);
-    const end = this.toUtcMidnight(to);
-    if (end < start) {
-      throw new Error('`to` date must not be earlier than `from` date');
-    }
-
-    const days: Date[] = [];
-    for (
-      let cursor = start;
-      cursor <= end;
-      cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)
-    ) {
-      days.push(new Date(cursor));
-    }
-    return days;
-  }
-
-  private toUtcMidnight(date: Date): Date {
-    return new Date(
-      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-    );
   }
 }

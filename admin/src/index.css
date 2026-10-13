@@ -292,6 +292,11 @@ table.data tr:hover td {
   color: #475569;
   border-color: #e2e8f0;
 }
+.badge.status-NOT_FOUND {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
 .badge.type-USUAL {
   background: #eff6ff;
   color: #1d4ed8;
@@ -383,6 +388,10 @@ table.data tr:hover td {
   color: var(--text);
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+.select.sm {
+  padding: 5px 8px;
+  font-size: 13px;
 }
 .input:focus,
 .select:focus {
@@ -488,6 +497,14 @@ table.data tr:hover td {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
   }
+}
+
+.flight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .actions {

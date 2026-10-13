@@ -2,9 +2,19 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+enum CabinClass {
+  BUSINESS
+  ECONOMY
+}
+
 input CreateSearchingInput {
   dates: DateRangeInput!
   type: SearchingType! = USUAL
+}
+
+input CreateTicketSearchingInput {
+  dates: DateRangeInput!
+  ticketClass: TicketClass! = BOTH
 }
 
 input DateRangeInput {
@@ -17,16 +27,31 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type FoundFlight {
+  arrivalTime: String!
+  cabinClass: CabinClass!
+  date: String!
+  departureTime: String!
+  flightNumber: String!
+}
+
 type Mutation {
   createSearchings(input: CreateSearchingInput!): [Searching!]!
+  createTicketSearchings(input: CreateTicketSearchingInput!): [TicketSearching!]!
   removeSearching(id: ID!): Searching!
   removeSearchings(ids: [ID!]!): Int!
+  removeTicketSearching(id: ID!): TicketSearching!
+  removeTicketSearchings(ids: [ID!]!): Int!
   updateSearchingStatus(id: ID!, status: SearchingStatus!): Searching!
+  updateTicketSearchingClass(id: ID!, ticketClass: TicketClass!): TicketSearching!
+  updateTicketSearchingStatus(id: ID!, status: TicketSearchingStatus!): TicketSearching!
 }
 
 type Query {
   searching(id: ID!): Searching!
   searchings: [Searching!]!
+  ticketSearching(id: ID!): TicketSearching!
+  ticketSearchings: [TicketSearching!]!
 }
 
 type Searching {
@@ -48,4 +73,31 @@ enum SearchingType {
   STUDENT
   USUAL
   VIP
+}
+
+enum TicketClass {
+  BOTH
+  BUSINESS
+  ECONOMY
+}
+
+type TicketSearching {
+  checksCount: Int!
+  createdAt: DateTime!
+  date: DateTime!
+  foundAt: DateTime
+  foundFlights: [FoundFlight!]
+  id: ID!
+  lastCheckedAt: DateTime
+  lastError: String
+  status: TicketSearchingStatus!
+  ticketClass: TicketClass!
+  updatedAt: DateTime!
+}
+
+enum TicketSearchingStatus {
+  CANCELED
+  FOUND
+  INPROGRESS
+  NOT_FOUND
 }

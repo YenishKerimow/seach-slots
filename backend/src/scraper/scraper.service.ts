@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { SearchingType } from '../searching/searching.model';
+import { randomUserAgent } from '../common/user-agents';
 
 /** Base URL of the appointment calendar. */
 const CALENDAR_BASE = 'https://appointment.mosaicvisa.com/calendar';
@@ -12,16 +13,6 @@ const CALENDAR_IDS: Record<SearchingType, number> = {
   [SearchingType.VIP]: 12,
   [SearchingType.STUDENT]: 20,
 };
-
-/** Rotated per request so calls don't all look identical. */
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0',
-];
 
 /** A single available appointment day found on a calendar. */
 export interface AvailableSlot {
@@ -111,12 +102,14 @@ export class ScraperService {
   }
 
   /** Download the page HTML with a random User-Agent and extract the slots. */
-  private async fetchAndParse(target: CalendarTarget): Promise<AvailableSlot[]> {
+  private async fetchAndParse(
+    target: CalendarTarget,
+  ): Promise<AvailableSlot[]> {
     const { data: html } = await axios.get<string>(target.url, {
       timeout: 30_000,
       responseType: 'text',
       headers: {
-        'User-Agent': this.randomUserAgent(),
+        'User-Agent': randomUserAgent(),
         Accept:
           'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
@@ -145,11 +138,6 @@ export class ScraperService {
     }
 
     return slots;
-  }
-
-  /** Pick a random User-Agent from the pool. */
-  private randomUserAgent(): string {
-    return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
   }
 
   /** `YYYY-MM` for `now` shifted by `monthOffset` months. */
