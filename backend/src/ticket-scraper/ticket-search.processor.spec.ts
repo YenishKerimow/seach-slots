@@ -96,27 +96,7 @@ describe('TicketSearchProcessor', () => {
     expect(telegram.sendMessage.mock.calls[0][0]).toContain('Найдены билеты');
   });
 
-  it('keeps checking a FOUND searching without re-notifying the same flights', async () => {
-    givenSearching(TicketClass.ECONOMY, TicketSearchingStatus.FOUND, [
-      flight(CabinClass.ECONOMY),
-    ]);
-    airline.fetchFlights.mockResolvedValue([flight(CabinClass.ECONOMY)]);
-
-    await processor.process(job);
-
-    expect(airline.fetchFlights).toHaveBeenCalled();
-    expect(prisma.ticketSearching.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: TicketSearchingStatus.FOUND,
-          checksCount: { increment: 1 },
-        }),
-      }),
-    );
-    expect(telegram.sendMessage).not.toHaveBeenCalled();
-  });
-
-  it('notifies only about flights that were not found before', async () => {
+  it('keeps checking a FOUND searching and notifies on every check', async () => {
     givenSearching(TicketClass.BOTH, TicketSearchingStatus.FOUND, [
       flight(CabinClass.ECONOMY),
     ]);
@@ -127,11 +107,22 @@ describe('TicketSearchProcessor', () => {
 
     await processor.process(job);
 
+    expect(prisma.ticketSearching.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TicketSearchingStatus.FOUND,
+          foundFlights: [
+            flight(CabinClass.ECONOMY),
+            flight(CabinClass.BUSINESS),
+          ],
+          checksCount: { increment: 1 },
+        }),
+      }),
+    );
     expect(telegram.sendMessage).toHaveBeenCalledTimes(1);
     const text: string = telegram.sendMessage.mock.calls[0][0];
-    expect(text).toContain('Появились новые рейсы');
-    expect(text).toContain('Бизнес');
-    expect(text).not.toContain('· Эконом');
+    expect(text).toContain('· Эконом');
+    expect(text).toContain('· Бизнес');
   });
 
   it('goes back to INPROGRESS when found tickets disappear', async () => {

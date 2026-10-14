@@ -119,9 +119,9 @@ date range with a class: `ECONOMY`, `BUSINESS` or `BOTH` (editable per row).
    date, departure/arrival time, cabin. Fares that differ only by price are
    merged. Flights matching the searching's class mark it **FOUND** (current
    flights are saved to `foundFlights`). A FOUND searching **keeps being
-   checked** until the user cancels or deletes it: Telegram is notified only
-   about flights not seen in the previous check, and if the tickets disappear
-   it goes back to INPROGRESS.
+   checked** until the user cancels or deletes it: Telegram is notified on every
+   check that finds matching flights, and if the tickets disappear it goes back
+   to INPROGRESS.
 3. **Expire cron** (every 10 min) marks `INPROGRESS` searchings whose date has
    passed as **NOT_FOUND**.
 
