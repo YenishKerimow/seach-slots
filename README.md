@@ -1,6 +1,6 @@
 # search-slots
 
-ShopStat search-slots monorepo.
+search-slots monorepo.
 
 ## Stack
 
