@@ -4,6 +4,7 @@ import SlotNotifications from '../SlotNotifications';
 const NAV = [
   { to: '/', label: 'Дашборд', ico: '▚', end: true },
   { to: '/searchings', label: 'Поиски', ico: '☰', end: false },
+  { to: '/tickets', label: 'Поиск билетов', ico: '✈', end: false },
 ];
 
 export default function Layout() {

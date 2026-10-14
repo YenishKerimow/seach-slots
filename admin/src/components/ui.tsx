@@ -1,11 +1,28 @@
-import type { SearchingStatus, SearchingType } from '../api';
-import { STATUS_LABELS, TYPE_LABELS } from '../api';
+import type {
+  SearchingStatus,
+  SearchingType,
+  TicketSearchingStatus,
+} from '../api';
+import { STATUS_LABELS, TICKET_STATUS_LABELS, TYPE_LABELS } from '../api';
 
 export function StatusBadge({ status }: { status: SearchingStatus }) {
   return (
     <span className={`badge status-${status}`}>
       <span className="dot" style={{ background: 'currentColor' }} />
       {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+export function TicketStatusBadge({
+  status,
+}: {
+  status: TicketSearchingStatus;
+}) {
+  return (
+    <span className={`badge status-${status}`}>
+      <span className="dot" style={{ background: 'currentColor' }} />
+      {TICKET_STATUS_LABELS[status]}
     </span>
   );
 }

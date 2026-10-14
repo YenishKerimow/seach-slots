@@ -91,3 +91,130 @@ export function formatDateTime(iso: string): string {
     minute: '2-digit',
   });
 }
+
+// ---------- Ticket searchings (ASB → IST flights) ----------
+
+export type TicketClass = 'ECONOMY' | 'BUSINESS' | 'BOTH';
+export type CabinClass = 'ECONOMY' | 'BUSINESS';
+export type TicketSearchingStatus =
+  | 'INPROGRESS'
+  | 'FOUND'
+  | 'NOT_FOUND'
+  | 'CANCELED';
+
+export interface FoundFlight {
+  flightNumber: string;
+  cabinClass: CabinClass;
+  date: string;
+  departureTime: string;
+  arrivalTime: string;
+}
+
+export interface TicketSearching {
+  id: string;
+  status: TicketSearchingStatus;
+  ticketClass: TicketClass;
+  date: string;
+  foundFlights: FoundFlight[] | null;
+  foundAt: string | null;
+  lastCheckedAt: string | null;
+  checksCount: number;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const TICKET_CLASSES: TicketClass[] = ['BOTH', 'ECONOMY', 'BUSINESS'];
+export const TICKET_STATUSES: TicketSearchingStatus[] = [
+  'INPROGRESS',
+  'FOUND',
+  'NOT_FOUND',
+  'CANCELED',
+];
+
+export const TICKET_CLASS_LABELS: Record<TicketClass, string> = {
+  ECONOMY: 'Эконом',
+  BUSINESS: 'Бизнес',
+  BOTH: 'Эконом и бизнес',
+};
+
+export const CABIN_LABELS: Record<CabinClass, string> = {
+  ECONOMY: 'Эконом',
+  BUSINESS: 'Бизнес',
+};
+
+export const TICKET_STATUS_LABELS: Record<TicketSearchingStatus, string> = {
+  INPROGRESS: 'В процессе',
+  FOUND: 'Найдено',
+  NOT_FOUND: 'Не найдено',
+  CANCELED: 'Отменено',
+};
+
+export const TICKET_SEARCHINGS = gql`
+  query TicketSearchings {
+    ticketSearchings {
+      id
+      status
+      ticketClass
+      date
+      foundFlights {
+        flightNumber
+        cabinClass
+        date
+        departureTime
+        arrivalTime
+      }
+      foundAt
+      lastCheckedAt
+      checksCount
+      lastError
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_TICKET_SEARCHINGS = gql`
+  mutation CreateTicketSearchings($input: CreateTicketSearchingInput!) {
+    createTicketSearchings(input: $input) {
+      id
+    }
+  }
+`;
+
+export const UPDATE_TICKET_STATUS = gql`
+  mutation UpdateTicketSearchingStatus(
+    $id: ID!
+    $status: TicketSearchingStatus!
+  ) {
+    updateTicketSearchingStatus(id: $id, status: $status) {
+      id
+      status
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_TICKET_CLASS = gql`
+  mutation UpdateTicketSearchingClass($id: ID!, $ticketClass: TicketClass!) {
+    updateTicketSearchingClass(id: $id, ticketClass: $ticketClass) {
+      id
+      ticketClass
+      updatedAt
+    }
+  }
+`;
+
+export const REMOVE_TICKET_SEARCHING = gql`
+  mutation RemoveTicketSearching($id: ID!) {
+    removeTicketSearching(id: $id) {
+      id
+    }
+  }
+`;
+
+export const REMOVE_TICKET_SEARCHINGS = gql`
+  mutation RemoveTicketSearchings($ids: [ID!]!) {
+    removeTicketSearchings(ids: $ids)
+  }
+`;

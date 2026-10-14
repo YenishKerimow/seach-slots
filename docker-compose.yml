@@ -17,6 +17,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: search-slots-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6390}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -24,6 +38,8 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     # Inject all params from the repo-root .env into the container (BOT_TOKEN,
     # TELEGRAM_CHAT_ID, etc.). Values in `environment:` below override any of the
@@ -35,6 +51,9 @@ services:
       # Overrides the host-oriented DATABASE_URL from .env (localhost:5440).
       DATABASE_URL: "postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-root}@postgres:5432/${POSTGRES_DB:-search_slots}?schema=public"
       PORT: 3000
+      # BullMQ queue (ticket searches) — Redis on its internal port.
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "${BACKEND_PORT:-3000}:3000"
 
@@ -54,3 +73,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

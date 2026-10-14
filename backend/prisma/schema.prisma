@@ -35,3 +35,38 @@ model Searching {
   @@index([date])
   @@map("searchings")
 }
+
+enum TicketSearchingStatus {
+  INPROGRESS
+  FOUND
+  NOT_FOUND
+  CANCELED
+}
+
+// Which cabin a ticket searching is looking for.
+enum TicketClass {
+  ECONOMY
+  BUSINESS
+  BOTH
+}
+
+// One entity per flight day being searched (ASB -> IST).
+model TicketSearching {
+  id            String                @id @default(uuid()) @db.Uuid
+  status        TicketSearchingStatus @default(INPROGRESS)
+  ticketClass   TicketClass           @default(BOTH)
+  date          DateTime              @db.Date
+  // Matching flights captured when the searching was resolved (FoundFlight[]).
+  foundFlights  Json?
+  foundAt       DateTime?
+  lastCheckedAt DateTime?
+  checksCount   Int                   @default(0)
+  lastError     String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  // Cron queries: INPROGRESS with date >= today (enqueue) / date < today (expire).
+  @@index([status, date])
+  @@index([date])
+  @@map("ticket_searchings")
+}
