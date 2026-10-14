@@ -23,6 +23,10 @@ import type {
 import { Card, TicketStatusBadge } from '../components/ui';
 import Modal from '../components/Modal';
 
+/** Found searchings keep being checked until canceled or deleted. */
+const isActive = (status: TicketSearchingStatus) =>
+  status === 'INPROGRESS' || status === 'FOUND';
+
 export default function TicketsPage() {
   // Poll so statuses / found flights from the worker show up without a reload.
   const { data, loading, error, refetch } = useQuery<{
@@ -314,7 +318,7 @@ export default function TicketsPage() {
                     <td className="muted">{formatDateTime(r.createdAt)}</td>
                     <td>
                       <div className="actions">
-                        {r.status !== 'INPROGRESS' && (
+                        {!isActive(r.status) && (
                           <button
                             className="btn ghost sm"
                             onClick={() => onSetStatus(r.id, 'INPROGRESS')}
@@ -322,7 +326,7 @@ export default function TicketsPage() {
                             Возобновить
                           </button>
                         )}
-                        {r.status === 'INPROGRESS' && (
+                        {isActive(r.status) && (
                           <button
                             className="btn ghost sm"
                             onClick={() => onSetStatus(r.id, 'CANCELED')}

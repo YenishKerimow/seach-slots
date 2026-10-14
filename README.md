@@ -110,15 +110,18 @@ date range with a class: `ECONOMY`, `BUSINESS` or `BOTH` (editable per row).
 
 `backend/src/ticket-scraper`:
 
-1. **Enqueue cron** (every 30 s) puts one BullMQ job per `INPROGRESS`
-   searching whose date is today or later (Ashgabat time). The searching id is
+1. **Enqueue cron** (every 30 s) puts one BullMQ job per `INPROGRESS` or
+   `FOUND` searching whose date is today or later (Ashgabat time). The searching id is
    the job id, so a day already waiting or running is not queued twice.
 2. **Worker** (`ticket-search` queue, concurrency **50**) GETs
    `https://turkmenistanairlinestr.com/en-US/SearchResult/ASB/IST/DD.MM.YYYY/-/0/0/1/0/0/1`
    with a random User-Agent and parses every `div.result-box` → flight number,
    date, departure/arrival time, cabin. Fares that differ only by price are
-   merged. Flights matching the searching's class mark it **FOUND** (flights are
-   saved to `foundFlights`) and a Telegram message is sent.
+   merged. Flights matching the searching's class mark it **FOUND** (current
+   flights are saved to `foundFlights`). A FOUND searching **keeps being
+   checked** until the user cancels or deletes it: Telegram is notified only
+   about flights not seen in the previous check, and if the tickets disappear
+   it goes back to INPROGRESS.
 3. **Expire cron** (every 10 min) marks `INPROGRESS` searchings whose date has
    passed as **NOT_FOUND**.
 

@@ -36,12 +36,15 @@ describe('TicketSearchProcessor', () => {
   const givenSearching = (
     ticketClass: TicketClass,
     status = TicketSearchingStatus.INPROGRESS,
+    foundFlights: FoundFlight[] | null = null,
   ) =>
     prisma.ticketSearching.findUnique.mockResolvedValue({
       id: 's1',
       status,
       ticketClass,
       date: new Date('2026-12-15T00:00:00.000Z'),
+      foundFlights,
+      foundAt: foundFlights ? new Date('2026-12-01T00:00:00.000Z') : null,
     });
 
   beforeEach(() => {
@@ -77,7 +80,12 @@ describe('TicketSearchProcessor', () => {
     expect(airline.fetchFlights).toHaveBeenCalledWith('2026-12-15');
     expect(prisma.ticketSearching.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 's1', status: TicketSearchingStatus.INPROGRESS },
+        where: {
+          id: 's1',
+          status: {
+            in: [TicketSearchingStatus.INPROGRESS, TicketSearchingStatus.FOUND],
+          },
+        },
         data: expect.objectContaining({
           status: TicketSearchingStatus.FOUND,
           foundFlights: [flight(CabinClass.ECONOMY)],
@@ -85,7 +93,64 @@ describe('TicketSearchProcessor', () => {
       }),
     );
     expect(telegram.sendMessage).toHaveBeenCalledTimes(1);
-    expect(telegram.sendMessage.mock.calls[0][0]).toContain('T5911');
+    expect(telegram.sendMessage.mock.calls[0][0]).toContain('Найдены билеты');
+  });
+
+  it('keeps checking a FOUND searching without re-notifying the same flights', async () => {
+    givenSearching(TicketClass.ECONOMY, TicketSearchingStatus.FOUND, [
+      flight(CabinClass.ECONOMY),
+    ]);
+    airline.fetchFlights.mockResolvedValue([flight(CabinClass.ECONOMY)]);
+
+    await processor.process(job);
+
+    expect(airline.fetchFlights).toHaveBeenCalled();
+    expect(prisma.ticketSearching.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TicketSearchingStatus.FOUND,
+          checksCount: { increment: 1 },
+        }),
+      }),
+    );
+    expect(telegram.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('notifies only about flights that were not found before', async () => {
+    givenSearching(TicketClass.BOTH, TicketSearchingStatus.FOUND, [
+      flight(CabinClass.ECONOMY),
+    ]);
+    airline.fetchFlights.mockResolvedValue([
+      flight(CabinClass.ECONOMY),
+      flight(CabinClass.BUSINESS),
+    ]);
+
+    await processor.process(job);
+
+    expect(telegram.sendMessage).toHaveBeenCalledTimes(1);
+    const text: string = telegram.sendMessage.mock.calls[0][0];
+    expect(text).toContain('Появились новые рейсы');
+    expect(text).toContain('Бизнес');
+    expect(text).not.toContain('· Эконом');
+  });
+
+  it('goes back to INPROGRESS when found tickets disappear', async () => {
+    givenSearching(TicketClass.ECONOMY, TicketSearchingStatus.FOUND, [
+      flight(CabinClass.ECONOMY),
+    ]);
+    airline.fetchFlights.mockResolvedValue([flight(CabinClass.BUSINESS)]);
+
+    await processor.process(job);
+
+    expect(prisma.ticketSearching.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TicketSearchingStatus.INPROGRESS,
+          foundAt: null,
+        }),
+      }),
+    );
+    expect(telegram.sendMessage).not.toHaveBeenCalled();
   });
 
   it('only records the check when nothing matches', async () => {
@@ -97,16 +162,18 @@ describe('TicketSearchProcessor', () => {
 
     await processor.process(job);
 
-    expect(prisma.ticketSearching.updateMany).not.toHaveBeenCalled();
-    expect(prisma.ticketSearching.update).toHaveBeenCalledWith(
+    expect(prisma.ticketSearching.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ checksCount: { increment: 1 } }),
+        data: expect.objectContaining({
+          status: TicketSearchingStatus.INPROGRESS,
+          checksCount: { increment: 1 },
+        }),
       }),
     );
     expect(telegram.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('does not notify if the searching was closed while fetching', async () => {
+  it('does not notify if the searching was canceled while fetching', async () => {
     givenSearching(TicketClass.BOTH);
     airline.fetchFlights.mockResolvedValue([flight(CabinClass.BUSINESS)]);
     prisma.ticketSearching.updateMany.mockResolvedValue({ count: 0 });
@@ -116,13 +183,16 @@ describe('TicketSearchProcessor', () => {
     expect(telegram.sendMessage).not.toHaveBeenCalled();
   });
 
-  it('skips searchings that are no longer in progress', async () => {
-    givenSearching(TicketClass.BOTH, TicketSearchingStatus.CANCELED);
+  it.each([TicketSearchingStatus.CANCELED, TicketSearchingStatus.NOT_FOUND])(
+    'skips %s searchings',
+    async (status) => {
+      givenSearching(TicketClass.BOTH, status);
 
-    await processor.process(job);
+      await processor.process(job);
 
-    expect(airline.fetchFlights).not.toHaveBeenCalled();
-  });
+      expect(airline.fetchFlights).not.toHaveBeenCalled();
+    },
+  );
 
   it('stores the error and rethrows so BullMQ retries', async () => {
     givenSearching(TicketClass.BOTH);

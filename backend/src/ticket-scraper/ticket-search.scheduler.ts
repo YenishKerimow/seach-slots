@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { todayInAshgabat } from '../common/dates';
 import { TicketSearchingStatus } from '../ticket-searching/ticket-searching.model';
 import {
+  ACTIVE_TICKET_STATUSES,
   TICKET_SEARCH_JOB,
   TICKET_SEARCH_QUEUE,
   TicketSearchJobData,
@@ -23,8 +24,8 @@ export class TicketSearchScheduler {
   ) {}
 
   /**
-   * Every 30 seconds: queue one job per open (INPROGRESS, not yet past)
-   * searching. The searching id is the job id, so a day that is still waiting
+   * Every 30 seconds: queue one job per active (INPROGRESS or FOUND, not yet
+   * past) searching. The searching id is the job id, so a day that is still waiting
    * or being checked is not queued twice.
    */
   @Cron('*/30 * * * * *', { name: 'enqueue-ticket-searches' })
@@ -36,7 +37,7 @@ export class TicketSearchScheduler {
     try {
       const pending = await this.prisma.ticketSearching.findMany({
         where: {
-          status: TicketSearchingStatus.INPROGRESS,
+          status: { in: ACTIVE_TICKET_STATUSES },
           date: { gte: todayInAshgabat() },
         },
         select: { id: true },

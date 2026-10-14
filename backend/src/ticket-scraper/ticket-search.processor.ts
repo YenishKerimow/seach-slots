@@ -12,8 +12,9 @@ import {
   TicketSearchingStatus,
 } from '../ticket-searching/ticket-searching.model';
 import { AirlineClient } from './airline.client';
-import { matchesClass } from './flight-parser';
+import { flightKey, matchesClass } from './flight-parser';
 import {
+  ACTIVE_TICKET_STATUSES,
   TICKET_SEARCH_CONCURRENCY,
   TICKET_SEARCH_QUEUE,
   TicketSearchJobData,
@@ -31,9 +32,12 @@ const CABIN_LABELS: Record<CabinClass, string> = {
 };
 
 /**
- * Checks one TicketSearching against the airline site. On a match the
- * searching is marked FOUND (with the matching flights) and Telegram is
- * notified; otherwise only the check bookkeeping is updated.
+ * Checks one TicketSearching against the airline site. A searching keeps being
+ * checked after it is FOUND (until the user cancels or deletes it):
+ * - matching flights -> FOUND, `foundFlights` is replaced with the current set
+ *   and Telegram is notified only about flights not seen in the previous check;
+ * - no matching flights -> back to INPROGRESS (tickets sold out), so they are
+ *   reported again if they reappear.
  */
 @Processor(TICKET_SEARCH_QUEUE, { concurrency: TICKET_SEARCH_CONCURRENCY })
 export class TicketSearchProcessor extends WorkerHost {
@@ -52,8 +56,13 @@ export class TicketSearchProcessor extends WorkerHost {
     const searching = await this.prisma.ticketSearching.findUnique({
       where: { id: searchingId },
     });
-    // Canceled / deleted / already resolved since the job was queued.
-    if (!searching || searching.status !== TicketSearchingStatus.INPROGRESS) {
+    // Canceled / deleted / expired since the job was queued.
+    if (
+      !searching ||
+      !ACTIVE_TICKET_STATUSES.includes(
+        searching.status as TicketSearchingStatus,
+      )
+    ) {
       return;
     }
 
@@ -78,49 +87,60 @@ export class TicketSearchProcessor extends WorkerHost {
     const matches = flights.filter(
       (f) => f.date === date && matchesClass(f.cabinClass, ticketClass),
     );
+    const previous =
+      (searching.foundFlights as unknown as FoundFlight[] | null) ?? [];
+    const known = new Set(previous.map(flightKey));
+    const fresh = matches.filter((f) => !known.has(flightKey(f)));
 
-    if (matches.length === 0) {
-      await this.prisma.ticketSearching.update({
-        where: { id: searchingId },
-        data: {
-          lastCheckedAt: new Date(),
-          checksCount: { increment: 1 },
-          lastError: null,
-        },
-      });
-      return;
-    }
-
-    // Only resolve if still INPROGRESS — the admin may have canceled it or
-    // changed it while we were fetching.
+    // Only touch it while still active — the admin may have canceled it while
+    // we were fetching.
     const now = new Date();
     const { count } = await this.prisma.ticketSearching.updateMany({
-      where: { id: searchingId, status: TicketSearchingStatus.INPROGRESS },
+      where: { id: searchingId, status: { in: ACTIVE_TICKET_STATUSES } },
       data: {
-        status: TicketSearchingStatus.FOUND,
-        foundFlights: matches as unknown as Prisma.InputJsonValue,
-        foundAt: now,
         lastCheckedAt: now,
         checksCount: { increment: 1 },
         lastError: null,
+        ...(matches.length > 0
+          ? {
+              status: TicketSearchingStatus.FOUND,
+              foundFlights: matches as unknown as Prisma.InputJsonValue,
+              foundAt: searching.foundAt ?? now,
+            }
+          : {
+              status: TicketSearchingStatus.INPROGRESS,
+              foundFlights: Prisma.DbNull,
+              foundAt: null,
+            }),
       },
     });
     if (count === 0) {
       return;
     }
 
+    if (matches.length === 0 && previous.length > 0) {
+      this.logger.log(
+        `Ticket searching ${searchingId} (${date}) -> INPROGRESS: tickets gone`,
+      );
+    }
+    if (fresh.length === 0) {
+      return;
+    }
+
     this.logger.log(
-      `Ticket searching ${searchingId} (${date} ${ticketClass}) -> FOUND: ` +
-        matches.map((f) => `${f.flightNumber} ${f.cabinClass}`).join(', '),
+      `Ticket searching ${searchingId} (${date} ${ticketClass}) -> FOUND, new: ` +
+        fresh.map((f) => `${f.flightNumber} ${f.cabinClass}`).join(', '),
     );
 
-    const lines = matches.map(
+    const lines = fresh.map(
       (f) =>
         `• <b>${f.flightNumber}</b> ${f.departureTime} → ${f.arrivalTime} · ` +
         CABIN_LABELS[f.cabinClass],
     );
+    const title =
+      previous.length > 0 ? 'Появились новые рейсы!' : 'Найдены билеты!';
     await this.telegram.sendMessage(
-      `✈️ <b>Найдены билеты!</b>\n` +
+      `✈️ <b>${title}</b>\n` +
         `Маршрут: <b>${this.airline.route}</b>\n` +
         `Дата: <b>${date}</b>\n` +
         `Класс поиска: <b>${CLASS_LABELS[ticketClass]}</b>\n` +

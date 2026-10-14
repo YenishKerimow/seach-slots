@@ -71,18 +71,23 @@ export function parseFlights(html: string, searchDate: string): FoundFlight[] {
       arrivalTime,
     };
 
-    const key = [
-      flight.date,
-      flight.flightNumber,
-      flight.departureTime,
-      flight.cabinClass,
-    ].join('|');
+    const key = flightKey(flight);
     if (!unique.has(key)) {
       unique.set(key, flight);
     }
   });
 
   return [...unique.values()];
+}
+
+/** Identity of a flight offer: same flight, departure and cabin = same offer. */
+export function flightKey(flight: FoundFlight): string {
+  return [
+    flight.date,
+    flight.flightNumber,
+    flight.departureTime,
+    flight.cabinClass,
+  ].join('|');
 }
 
 /** Whether a flight's cabin satisfies the class a searching is looking for. */
