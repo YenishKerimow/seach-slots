@@ -117,7 +117,8 @@ date range with a class: `ECONOMY`, `BUSINESS` or `BOTH` (editable per row).
    `https://turkmenistanairlinestr.com/en-US/SearchResult/ASB/IST/DD.MM.YYYY/-/0/0/1/0/0/1`
    with a random User-Agent and parses every `div.result-box` → flight number,
    date, departure/arrival time, cabin. Fares that differ only by price are
-   merged. Flights matching the searching's class mark it **FOUND** (current
+   merged; fares without a cabin class ("Opportunity Flight", empty label)
+   are ignored. Flights matching the searching's class mark it **FOUND** (current
    flights are saved to `foundFlights`). A FOUND searching **keeps being
    checked** until the user cancels or deletes it: Telegram is notified on every
    check that finds matching flights, and if the tickets disappear it goes back
