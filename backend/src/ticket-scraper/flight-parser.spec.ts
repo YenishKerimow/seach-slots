@@ -117,17 +117,33 @@ describe('parseFlights', () => {
     ]);
   });
 
-  it('treats an empty cabin label as economy', () => {
-    const html = box({
-      flight: 'T5901',
-      dep: '04:35',
-      arr: '06:55',
-      cabin: '',
-      price: '595,00 $',
-    });
-    expect(parseFlights(html, '2026-12-15')[0].cabinClass).toBe(
-      CabinClass.ECONOMY,
-    );
+  it('skips fares without a cabin class (Opportunity Flight)', () => {
+    const html = [
+      box({
+        flight: '931',
+        dep: '13:10',
+        arr: '15:15',
+        cabin: '',
+        price: '594,00 $',
+      }),
+      box({
+        flight: 'T5921',
+        dep: '19:10',
+        arr: '21:15',
+        cabin: 'Economy',
+        price: '375,00 $',
+      }),
+    ].join('');
+
+    expect(parseFlights(html, '2026-12-15')).toEqual([
+      {
+        flightNumber: 'T5921',
+        cabinClass: CabinClass.ECONOMY,
+        date: '2026-12-15',
+        departureTime: '19:10',
+        arrivalTime: '21:15',
+      },
+    ]);
   });
 
   it('reads the departure date from the box, rolling the year over New Year', () => {

@@ -24,7 +24,9 @@ const MONTHS = [
  * Parse every `div.result-box` on a Turkmenistan Airlines search result page.
  * The site renders one box per fare, so the same flight appears several times
  * with different prices — those are merged into one offer per
- * flight + departure + cabin (price is ignored).
+ * flight + departure + cabin (price is ignored). Fares without a cabin class
+ * (e.g. "Opportunity Flight" with an empty label) are neither Economy nor
+ * Business tickets and are skipped.
  *
  * @param searchDate ISO date (YYYY-MM-DD) the page was requested for; supplies
  *   the year (the page only shows "15 November Sunday") and is the fallback
@@ -42,16 +44,20 @@ export function parseFlights(html: string, searchDate: string): FoundFlight[] {
     const arrivalTime = times.last().text().trim();
 
     // The cabin label sits next to the baggage allowance: "Economy",
-    // "Business" or (for some promo fares) empty.
-    const cabinLabel = box
-      .find('.result-box-main-row i.ti-luggage')
-      .first()
-      .closest('.result-box-col')
-      .children('span')
-      .not('.half-opacity')
-      .first()
-      .text()
-      .trim();
+    // "Business" or (for "Opportunity Flight" fares) empty.
+    const cabinClass = toCabinClass(
+      box
+        .find('.result-box-main-row i.ti-luggage')
+        .first()
+        .closest('.result-box-col')
+        .children('span')
+        .not('.half-opacity')
+        .first()
+        .text(),
+    );
+    if (!cabinClass) {
+      return;
+    }
 
     const numbers = box
       .find('.result-box-detail-title span')
@@ -65,7 +71,7 @@ export function parseFlights(html: string, searchDate: string): FoundFlight[] {
 
     const flight: FoundFlight = {
       flightNumber,
-      cabinClass: toCabinClass(cabinLabel),
+      cabinClass,
       date: parseDayMonth(dateText, searchDate) ?? searchDate,
       departureTime,
       arrivalTime,
@@ -95,12 +101,11 @@ export function matchesClass(cabin: CabinClass, wanted: TicketClass): boolean {
   return wanted === TicketClass.BOTH || (cabin as string) === wanted;
 }
 
-/**
- * The airline only sells Economy and Business, so anything not labelled
- * Business (including an empty label) is Economy.
- */
-function toCabinClass(label: string): CabinClass {
-  return /business/i.test(label) ? CabinClass.BUSINESS : CabinClass.ECONOMY;
+/** "Economy" / "Business" label -> cabin; anything else (empty) -> null. */
+function toCabinClass(label: string): CabinClass | null {
+  if (/business/i.test(label)) return CabinClass.BUSINESS;
+  if (/economy/i.test(label)) return CabinClass.ECONOMY;
+  return null;
 }
 
 /**
