@@ -12,6 +12,7 @@ function box(opts: {
   cabin: string;
   price: string;
   day?: string;
+  opportunity?: boolean;
 }): string {
   return `
   <div class="search-result-list-row">
@@ -36,6 +37,7 @@ function box(opts: {
         </div>
         <div class="result-box-col select-button with-price">
           <h2 data-defaultprice="${opts.price}">${opts.price}</h2>
+          ${opts.opportunity ? '<button class="btn btn-sm btn-orange chance-notice"><i class="ti ti-info-circle"></i>Opportunity Flight</button>' : ''}
         </div>
       </div>
       <div class="result-box-detail">
@@ -117,7 +119,28 @@ describe('parseFlights', () => {
     ]);
   });
 
-  it('skips fares without a cabin class (Opportunity Flight)', () => {
+  it('treats Opportunity Flight fares (empty cabin label) as Economy', () => {
+    const html = box({
+      flight: '931',
+      dep: '13:10',
+      arr: '15:15',
+      cabin: '',
+      price: '594,00 $',
+      opportunity: true,
+    });
+
+    expect(parseFlights(html, '2026-12-15')).toEqual([
+      {
+        flightNumber: '931',
+        cabinClass: CabinClass.ECONOMY,
+        date: '2026-12-15',
+        departureTime: '13:10',
+        arrivalTime: '15:15',
+      },
+    ]);
+  });
+
+  it('skips other fares without a cabin class', () => {
     const html = [
       box({
         flight: '931',
